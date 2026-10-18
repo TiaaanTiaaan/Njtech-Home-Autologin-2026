@@ -67,6 +67,7 @@ class App:
         self._apply_window_icon()
 
         core.set_log_sink(self._enqueue_log)
+        core.log(f"数据目录：{core.DATA_DIR}")
         self._build()
         self._refresh_carrier_box()
         self._fill_form()
@@ -159,7 +160,7 @@ class App:
         self.btn_status = ttk.Button(bar, text="刷新状态", command=self.refresh_status)
         self.btn_logout = ttk.Button(bar, text="注销", command=self.do_logout)
         self.btn_browser = ttk.Button(bar, text="浏览器登录", command=self.do_browser)
-        self.btn_logs = ttk.Button(bar, text="打开日志目录", command=self.open_logs)
+        self.btn_logs = ttk.Button(bar, text="打开数据目录", command=self.open_logs)
         for btn in (self.btn_login, self.btn_status, self.btn_logout, self.btn_browser, self.btn_logs):
             btn.pack(side="left", padx=(0, 8))
 
@@ -454,9 +455,9 @@ class App:
 
     def open_logs(self) -> None:
         try:
-            core.LOG_DIR.mkdir(exist_ok=True)
+            core.ensure_data_dir()
             import os
-            os.startfile(core.LOG_DIR)  # noqa: S606
+            os.startfile(core.DATA_DIR)  # noqa: S606
         except Exception as exc:  # noqa: BLE001
             messagebox.showerror("打开失败", f"{type(exc).__name__}: {exc}")
 

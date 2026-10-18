@@ -29,7 +29,7 @@ Write-Host "== 2/2 打包命令行版 ==" -ForegroundColor Cyan
 Write-Host "`n完成，产物：" -ForegroundColor Green
 Get-ChildItem "dist\*.exe" | Select-Object Name, @{n = "大小(MB)"; e = { [math]::Round($_.Length / 1MB, 1) } } | Format-Table -AutoSize
 
-# 把已有配置与说明一并放到 dist（exe 会读写同级目录的 config.json / logs）
-if (Test-Path "config.json") { Copy-Item "config.json" "dist\config.json" -Force }
+# 不再把 config.json 复制到 dist（含明文密码，且新版已改到 %APPDATA%\NjtechAutologin）
 if (Test-Path "README.md") { Copy-Item "README.md" "dist\README.md" -Force }
-Write-Host "已复制 config.json / README.md 到 dist\" -ForegroundColor Green
+Write-Host "已复制 README.md 到 dist\" -ForegroundColor Green
+Write-Host "提示：exe 的配置与日志保存在 %APPDATA%\NjtechAutologin，可用 --where 查看" -ForegroundColor Green

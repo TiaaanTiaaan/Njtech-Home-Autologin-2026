@@ -73,7 +73,19 @@ cd "d:\Njtech Home Autologin-2026"
 
 首次 `--setup` 时会交互式让你选运营商（也可直接回车沿用当前设置）。
 
-## 配置说明（config.json）
+## 配置说明（`%APPDATA%\NjtechAutologin\config.json`）
+
+配置文件、日志都不在 exe 旁边，而是在用户目录：
+
+```
+%APPDATA%\NjtechAutologin\config.json      # 账号、密码、运营商等
+%APPDATA%\NjtechAutologin\logs\            # 运行日志
+```
+
+这样 exe 放在 `Program Files` 等无写权限位置也能正常工作，升级替换 exe 不会丢配置。
+查看实际路径：`main.py --where`（或 exe `--where`）；想换位置就设环境变量 `NJTECH_DATA_DIR`。
+
+旧版本放在程序目录里的 `config.json` 会在首次运行时**自动迁移**过去。
 
 ```jsonc
 {
@@ -114,8 +126,9 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 |---|---|
 | `NjtechAutologin.exe` | 图形界面版（无控制台，**不强制提权**）。双击开界面；带 `--auto` 时静默联网 |
 | `NjtechAutologin-CLI.exe` | 命令行版（有控制台），行为与 `main.py` 完全一致 |
-| `config.json` / `README.md` | 自动复制到 `dist\` |
+| `README.md` | 自动复制到 `dist\` |
 
+- `dist\` 只放程序本体；**配置与日志写到 `%APPDATA%\NjtechAutologin`**，不会在 exe 旁边生成文件。
 - **提权是按需的**：平时启动不弹 UAC；只有点“开机自动登录”且当前权限不足以注册计划任务时，
   才弹一次授权框（取消则告警并回滚勾选状态）。
 - **不会闪命令行窗口**：所有 PowerShell 子进程都加了 `CREATE_NO_WINDOW`；
@@ -123,7 +136,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 - **图标统一**：exe 图标、窗口标题栏、任务栏、托盘统一使用 `assets/app.ico`（蓝色 N）。
 - 已内置 `requests`、`playwright` 驱动、`pystray`、`Pillow`，目标机器**无需安装 Python**；
   浏览器兜底仍调用系统自带 Edge（`channel="msedge"`），无需 `playwright install`。
-- exe 会读写**自身所在目录**的 `config.json` 与 `logs\`，可把 `dist\` 整个目录拷到别处使用。
+- exe 会读写**用户目录**下的 `config.json` 与 `logs\`（`%APPDATA%\NjtechAutologin`），可把 `dist\` 整个目录拷到别处使用。
 - 单文件约 69 MB，主要是 playwright 的 node 驱动；首次运行解包会慢 1~2 秒。
 - 移动 exe 位置后，请重新勾选一次「开机自动登录」，让计划任务指向新路径。
 - PyInstaller 单文件包偶尔会被杀毒软件误报，可加入白名单或改用 `--onedir` 打包。
@@ -135,7 +148,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 ## 安全
 
-`config.json` 内含明文密码，仅保存于本机，请勿提交到公开仓库（已在 `.gitignore` 中排除）。
+`config.json`（`%APPDATA%\NjtechAutologin\config.json`）内含明文密码，仅保存于本机，请勿分享或提交到公开仓库（项目里的 `.gitignore` 已排除）。
 
 ## 许可协议
 

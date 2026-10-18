@@ -26,6 +26,7 @@ import getpass
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -41,10 +42,27 @@ except ImportError:  # pragma: no cover
     sys.exit("缺少依赖：pip install requests")
 
 FROZEN = bool(getattr(sys, "frozen", False))
-# 打包成 exe 后 __file__ 指向临时解包目录，配置与日志要放在 exe 旁边才算持久化
+# 程序所在目录（打包后为 exe 所在目录，仅用于定位 exe / 作为工作目录）
 ROOT = Path(sys.executable).resolve().parent if FROZEN else Path(__file__).resolve().parent
-CONFIG_PATH = ROOT / "config.json"
-LOG_DIR = ROOT / "logs"
+
+APP_NAME = "NjtechAutologin"
+
+
+def _data_dir() -> Path:
+    """配置与日志的存放目录：优先环境变量，其次 %APPDATA%，最后用户主目录。"""
+    override = os.environ.get("NJTECH_DATA_DIR")
+    if override:
+        return Path(os.path.expandvars(override)).expanduser()
+    base = os.environ.get("APPDATA") or os.environ.get("LOCALAPPDATA")
+    if base:
+        return Path(base) / APP_NAME
+    return Path.home() / ("." + APP_NAME.lower())
+
+
+# 用户数据目录（不在 exe 旁边，避免 Program Files 无写权限 / 升级被覆盖）
+DATA_DIR = _data_dir()
+CONFIG_PATH = DATA_DIR / "config.json"
+LOG_DIR = DATA_DIR / "logs"
 TASK_NAME = "NjtechCampusAutoLogin"  # 开机自动登录的计划任务名
 CREATE_NO_WINDOW = 0x08000000  # 子进程不弹控制台窗口（仅 Windows 有效）
 
@@ -112,7 +130,7 @@ def log(msg: str) -> None:
             pass
     if _log_file is None:
         try:
-            LOG_DIR.mkdir(exist_ok=True)
+            LOG_DIR.mkdir(parents=True, exist_ok=True)
             _log_file = LOG_DIR / f"autologin-{datetime.now():%Y%m%d}.log"
         except OSError:
             return
@@ -121,6 +139,43 @@ def log(msg: str) -> None:
             fp.write(f"{datetime.now():%Y-%m-%d %H:%M:%S} {msg}\n")
     except OSError:
         pass
+
+
+# --------------------------------------------------------------------------- #
+# 用户数据目录
+# --------------------------------------------------------------------------- #
+def ensure_data_dir() -> None:
+    """确保用户数据目录（默认 %APPDATA%/NjtechAutologin）存在。"""
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass
+
+
+_migrated = False
+
+
+def migrate_legacy_config() -> bool:
+    """把旧版本放在程序目录里的 config.json 搬到用户目录（返回是否迁移过）。"""
+    global _migrated
+    if _migrated:
+        return False
+    _migrated = True
+    if CONFIG_PATH.exists():
+        return False
+    legacy = ROOT / "config.json"
+    if legacy == CONFIG_PATH or not legacy.exists():
+        return False
+    ensure_data_dir()
+    try:
+        shutil.move(str(legacy), str(CONFIG_PATH))
+    except OSError:
+        try:
+            shutil.copy2(legacy, CONFIG_PATH)
+        except OSError:
+            return False
+    log(f"已把旧配置迁移到用户目录：{CONFIG_PATH}")
+    return True
 
 
 # --------------------------------------------------------------------------- #
@@ -419,6 +474,8 @@ def _nearby_text(html: str, pos: int, radius: int = 300) -> str:
 # 配置读写
 # --------------------------------------------------------------------------- #
 def load_config() -> dict:
+    ensure_data_dir()
+    migrate_legacy_config()
     if CONFIG_PATH.exists():
         try:
             return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
@@ -428,6 +485,7 @@ def load_config() -> dict:
 
 
 def save_config(cfg: dict) -> None:
+    ensure_data_dir()
     cfg["saved_at"] = datetime.now().isoformat(timespec="seconds")
     CONFIG_PATH.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
     try:  # 仅当前用户可读
@@ -593,6 +651,7 @@ def list_carriers(cfg: dict) -> None:
 
 def open_in_editor() -> None:
     """无法交互时，打开记事本让用户手工填写。"""
+    ensure_data_dir()
     template = {
         "fields": list(DEFAULT_FIELDS),
         "values": {"DDDDD": "", "upass": ""},
@@ -1240,6 +1299,7 @@ def main() -> int:
     parser.add_argument("--install-task", action="store_true", help="注册开机自动登录计划任务")
     parser.add_argument("--uninstall-task", action="store_true", help="移除开机自动登录计划任务")
     parser.add_argument("--task-status", action="store_true", help="查看计划任务是否已安装")
+    parser.add_argument("--where", action="store_true", help="显示配置与日志的保存位置")
     args = parser.parse_args()
 
     # 提示：双击 main.pyw 可免控制台启动界面；计划任务请用 CLI 参数，避免弹窗
@@ -1251,10 +1311,17 @@ def main() -> int:
     cli_intent = any([
         args.setup, args.status, args.logout, args.list_carriers, args.carrier,
         args.force, args.browser, args.headless, args.auto,
-        args.install_task, args.uninstall_task, args.task_status,
+        args.install_task, args.uninstall_task, args.task_status, args.where,
     ])
     if FROZEN and sys.stdout is None and not cli_intent:
         return launch_gui()
+
+    if args.where:
+        exists = CONFIG_PATH.exists()
+        log(f"数据目录：{DATA_DIR}")
+        log(f"配置文件：{CONFIG_PATH}（{'已存在' if exists else '尚未创建'}）")
+        log(f"日志目录：{LOG_DIR}")
+        return 0
     if args.install_task:
         ok, msg = install_task()
         log(("✅ " if ok else "❌ ") + msg)
