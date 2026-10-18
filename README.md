@@ -122,11 +122,13 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 
 产物在 `dist\`：
 
-| 文件 | 说明 |
-|---|---|
-| `NjtechAutologin.exe` | 图形界面版（无控制台，**不强制提权**）。双击开界面；带 `--auto` 时静默联网 |
-| `NjtechAutologin-CLI.exe` | 命令行版（有控制台），行为与 `main.py` 完全一致 |
-| `README.md` | 自动复制到 `dist\` |
+| 文件 | 体积 | 说明 |
+|---|---|---|
+| `NjtechAutologin.exe` | ~32 MB | **精简版 GUI**：接口登录 + 托盘 + 开机自启，不含浏览器兜底（点「浏览器登录」会提示不可用） |
+| `NjtechAutologin-Full.exe` | ~69 MB | **完整版 GUI**：额外内置 Playwright 驱动，接口失败时可回退浏览器填表 |
+| `NjtechAutologin-CLI.exe` | ~32 MB | 命令行版（精简），行为与 `main.py` 一致 |
+
+体积差异全部来自 Playwright 的 node 驱动（约 37 MB）。只想登录上网的话用精简版即可。
 
 - `dist\` 只放程序本体；**配置与日志写到 `%APPDATA%\NjtechAutologin`**，不会在 exe 旁边生成文件。
 - **提权是按需的**：平时启动不弹 UAC；只有点“开机自动登录”且当前权限不足以注册计划任务时，

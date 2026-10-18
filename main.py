@@ -210,15 +210,8 @@ def make_session(bind_ip: str | None = None) -> requests.Session:
 # 本机网卡 IP 探测
 # --------------------------------------------------------------------------- #
 def _powershell(cmd: str, timeout: float = 10.0) -> str:
-    """执行 PowerShell 并返回 stdout（失败返回空串，绝不抛异常）。"""
-    try:
-        return subprocess.run(
-            ["powershell", "-NoProfile", "-NonInteractive", "-Command", cmd],
-            capture_output=True, text=True, timeout=timeout,
-            creationflags=CREATE_NO_WINDOW,
-        ).stdout
-    except Exception:  # noqa: BLE001
-        return ""
+    """执行 PowerShell 并只要 stdout（失败返回空串，绝不抛异常）。"""
+    return _run_ps(cmd, timeout=timeout)[1]
 
 
 def local_ipv4_list() -> list[str]:
@@ -538,7 +531,6 @@ def ask_values(fields: list[dict], old: dict | None = None) -> dict:
 def carrier_suffix_of(values: dict, cfg: dict | None = None) -> str:
     """把页面上的“服务类型”选项映射成账号后缀。"""
     table = {c["name"]: c.get("suffix", "") for c in carrier_table(cfg or {})}
-    table.update({"校园电信": "@dx", "校园联通": "@lt", "校园移动": "@cmcc"})
     for val in values.values():
         if val in table:
             return table[val]
@@ -987,19 +979,36 @@ def sync_carriers(cfg: dict, html: str) -> bool:
     return changed
 
 
+def ensure_credentials(cfg: dict, force: bool = False) -> bool:
+    """保证配置里有账号密码；缺了就在终端询问（无终端则开记事本）。"""
+    if config_complete(cfg) and not force:
+        return True
+    cfg["fields"] = cfg.get("fields") or list(DEFAULT_FIELDS)
+
+    if sys.stdin and sys.stdin.isatty():
+        values = ask_values(cfg["fields"], config_values(cfg))
+        cfg["values"] = {**config_values(cfg), **values}
+        # 页面上若有“服务类型”选项，先按其取值；否则明确询问
+        page_suffix = carrier_suffix_of(values, cfg)
+        if page_suffix:
+            set_carrier(cfg, carrier_by_suffix(cfg, page_suffix))
+        if force or not (cfg.get("options") or {}).get("carrier"):
+            set_carrier(cfg, ask_carrier(cfg))
+        save_config(cfg)
+        return True
+
+    open_in_editor()
+    refreshed = load_config()
+    cfg.clear()
+    cfg.update(refreshed)
+    return config_complete(cfg)
+
+
 def run_browser_only(cfg: dict, args: argparse.Namespace, bind_ip: str | None) -> int:
     """直接走浏览器登录：不检测联网状态、不调接口。"""
-    if not cfg.get("fields"):
-        cfg["fields"] = list(DEFAULT_FIELDS)
-
-    if not config_complete(cfg):
-        if sys.stdin and sys.stdin.isatty():
-            values = ask_values(cfg["fields"], config_values(cfg))
-            cfg["values"] = {**config_values(cfg), **values}
-            save_config(cfg)
-        else:
-            log("配置不完整：请先在界面里填写账号密码并保存。")
-            return 3
+    if not ensure_credentials(cfg):
+        log("配置不完整：请先在界面里填写账号密码并保存。")
+        return 3
 
     log("跳过状态检测，直接打开浏览器登录 ...")
     ok, reason, captured = login_via_browser(cfg, headless=args.headless, bind_ip=bind_ip)
@@ -1064,22 +1073,9 @@ def run(args: argparse.Namespace) -> int:
 
     # 2) 已填写过则直接使用，否则询问
     if args.setup or not config_complete(cfg):
-        if sys.stdin and sys.stdin.isatty():
-            values = ask_values(cfg["fields"], config_values(cfg))
-            cfg["values"] = {**config_values(cfg), **values}
-            # 页面上若有“服务类型”选项，先按其取值；否则明确询问
-            page_suffix = carrier_suffix_of(values, cfg)
-            if page_suffix:
-                set_carrier(cfg, carrier_by_suffix(cfg, page_suffix))
-            if args.setup or not (cfg.get("options") or {}).get("carrier"):
-                set_carrier(cfg, ask_carrier(cfg))
-            save_config(cfg)
-        else:
-            open_in_editor()
-            cfg = load_config()
-            if not config_complete(cfg):
-                log("配置仍不完整，已退出。")
-                return 3
+        if not ensure_credentials(cfg, force=args.setup):
+            log("配置仍不完整，已退出。")
+            return 3
     else:
         log(f"检测到已保存的配置（{cfg.get('saved_at', '未知时间')}），跳过询问。")
 

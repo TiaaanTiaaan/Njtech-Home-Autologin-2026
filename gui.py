@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import queue
 import sys
 import threading
@@ -30,6 +31,7 @@ except ImportError:  # pragma: no cover
 
 DONE = object()
 FONT = "Microsoft YaHei UI"
+HAS_PLAYWRIGHT = importlib.util.find_spec("playwright") is not None
 
 
 def icon_path() -> Path | None:
@@ -438,6 +440,14 @@ class App:
         self._run_bg(core.run, self._namespace(), refresh=True)
 
     def do_browser(self) -> None:
+        if not HAS_PLAYWRIGHT:
+            messagebox.showwarning(
+                "功能不可用",
+                "当前为精简版，未内置浏览器登录组件。\n\n"
+                "请使用「立即登录」（接口方式），\n"
+                "或下载完整版 / 在源码环境安装 playwright 后使用。",
+            )
+            return
         if not self.save_form(silent=True):
             messagebox.showwarning("提示", "请先填写账号和密码，再点击“保存配置”。")
             return
