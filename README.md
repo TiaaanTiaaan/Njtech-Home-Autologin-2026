@@ -2,6 +2,9 @@
 
 自动登录南京工业大学宿舍区域有线校园网的小软件，方便快捷不烧心。
 
+> 📦 **不想装 Python？** 直接下载 [最新 Release](https://github.com/TiaaanTiaaan/Njtech-Home-Autologin-2026/releases/latest)
+> 里的 `NjtechAutologin.exe`（约 32 MB，双击即用）。
+
 面向 `http://10.50.255.11` 的局域网认证门户，自动完成上网登录。
 
 ## 功能
