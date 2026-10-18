@@ -36,9 +36,9 @@ Edge 为系统自带即可，无需 `playwright install`。
 
 **常驻与自启**（界面上的两个勾选项）：
 
-- **关闭窗口时最小化到托盘**：点窗口右上角关闭只会缩到系统托盘（蓝色 N 图标），
+- **关闭窗口时最小化到托盘**（默认不勾选）：勾选后点右上角关闭只会缩到系统托盘（蓝色 N 图标），
   后台继续每 30 秒检测一次；托盘菜单可「显示主界面 / 立即登录 / 刷新状态 / 退出」，
-  鼠标悬停显示当前状态，掉线时会弹气泡提醒。想彻底退出请用托盘菜单里的“退出”。
+  鼠标悬停显示当前状态，掉线时会弹气泡提醒。未勾选时关闭窗口即退出程序。
 - **开机自动登录（计划任务）**：勾选后注册 Windows 计划任务 `NjtechCampusAutoLogin`，
   登录系统后由 `pythonw.exe` 静默运行 `main.py --auto`（无黑框）。取消勾选即移除。
 
@@ -56,7 +56,7 @@ cd "d:\Njtech Home Autologin-2026"
 & "C:\Program Files\Python312\python.exe" main.py --setup     # 重新探测字段并重新填写
 & "C:\Program Files\Python312\python.exe" main.py --status    # 只看网络状态
 & "C:\Program Files\Python312\python.exe" main.py --auto      # 静默重试模式（计划任务用）
-& "C:\Program Files\Python312\python.exe" main.py --browser   # 强制用浏览器登录（加 --headless 则无界面）
+& "C:\Program Files\Python312\python.exe" main.py --browser   # 只用浏览器登录（不做状态预检，加 --headless 则无界面）
 & "C:\Program Files\Python312\python.exe" main.py --logout     # 注销当前在线会话（测试用）
 
 # 开机自启（计划任务）

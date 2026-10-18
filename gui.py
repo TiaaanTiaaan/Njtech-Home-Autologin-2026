@@ -168,7 +168,7 @@ class App:
         opts = ttk.Frame(outer)
         opts.pack(fill="x", pady=(8, 0))
         self.var_tray = tk.BooleanVar(
-            value=bool((self.cfg.get("ui") or {}).get("minimize_to_tray", True)) and HAS_TRAY
+            value=bool((self.cfg.get("ui") or {}).get("minimize_to_tray", False)) and HAS_TRAY
         )
         self.chk_tray = ttk.Checkbutton(
             opts, text="关闭窗口时最小化到托盘", variable=self.var_tray,

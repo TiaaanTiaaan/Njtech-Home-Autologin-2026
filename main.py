@@ -987,6 +987,31 @@ def sync_carriers(cfg: dict, html: str) -> bool:
     return changed
 
 
+def run_browser_only(cfg: dict, args: argparse.Namespace, bind_ip: str | None) -> int:
+    """直接走浏览器登录：不检测联网状态、不调接口。"""
+    if not cfg.get("fields"):
+        cfg["fields"] = list(DEFAULT_FIELDS)
+
+    if not config_complete(cfg):
+        if sys.stdin and sys.stdin.isatty():
+            values = ask_values(cfg["fields"], config_values(cfg))
+            cfg["values"] = {**config_values(cfg), **values}
+            save_config(cfg)
+        else:
+            log("配置不完整：请先在界面里填写账号密码并保存。")
+            return 3
+
+    log("跳过状态检测，直接打开浏览器登录 ...")
+    ok, reason, captured = login_via_browser(cfg, headless=args.headless, bind_ip=bind_ip)
+    log(f"  {reason}")
+    if captured:
+        cfg.setdefault("login", {})["captured"] = captured
+        learn_from_captured(cfg, captured)
+        save_config(cfg)
+        log("已记录真实登录请求，后续可用接口复现。")
+    return 0 if ok else 1
+
+
 def run(args: argparse.Namespace) -> int:
     log("===== 校园网自动登录 =====")
 
@@ -1003,6 +1028,11 @@ def run(args: argparse.Namespace) -> int:
         log(f"运营商已设为：{format_carrier(carrier)}")
 
     bind_ip = detect_campus_ip()
+
+    # 浏览器模式直接开浏览器，不做联网状态判定
+    if args.browser:
+        return run_browser_only(cfg, args, bind_ip)
+
     status = report_status(bind_ip)
 
     if not status["portal"]["reachable"]:
