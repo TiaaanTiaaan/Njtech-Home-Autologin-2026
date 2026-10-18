@@ -136,3 +136,7 @@ powershell -ExecutionPolicy Bypass -File build.ps1
 ## 安全
 
 `config.json` 内含明文密码，仅保存于本机，请勿提交到公开仓库（已在 `.gitignore` 中排除）。
+
+## 许可协议
+
+本项目基于 [MIT License](LICENSE) 开源，可自由使用、修改与分发，仅需保留版权声明。
